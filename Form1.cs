@@ -1,43 +1,98 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Net;
-using System.Threading;
 using System.IO;
+using Newtonsoft.Json.Linq;
 
 namespace TadahLauncher
 {
     public partial class Form1 : Form
     {
-        string baseUrl = "http://tadah.rocks";
-        string version = "1.0.FUCKCORPORATIONS";
-        string path = Path.GetDirectoryName(Application.ExecutablePath);
+        static string baseUrl = "http://tadah.rocks";
+        static string version = "1.0.5";
+        static string client = "2010";
+        static string path = Path.GetDirectoryName(Application.ExecutablePath);
+        static string installPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "\\Tadah\\" + client;
+
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void UpdateClient()
+        private void UpdateClient(bool doInstall)
         {
-            /*if (File.Exists(@path + @"\TadahUpdater.exe"))
+            label1.Text = "Getting the latest Tadah...";
+
+            string recievedClientData;
+            try
             {
-                Process.Start(@path + @"\TadahUpdater.exe");
+                recievedClientData = new WebClient().DownloadString(baseUrl + "/client/" + client);
+            }
+            catch
+            {
+                label1.Text = "Error: Can't connect.";
+                MessageBox.Show("Could not connect to Tadah.\n\nCurrent baseUrl: " + baseUrl + "\nLauncher version: " + version + "\n\nIf this persists, please send this message to the developers.", "Connection Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
+                return;
+            }
+
+            string versionString = "false";
+            string downloadUrl = "false";
+            string sha512 = "none";
+
+            try
+            {
+                JObject clientData = JObject.Parse(recievedClientData);
+
+                versionString = (string)clientData["version"];
+                downloadUrl = (string)clientData["url"];
+                sha512 = (string)clientData["sha512"];
+            }
+            catch
+            {
+                MessageBox.Show("Could not parse client info JSON data. This usually occurs if the webserver gives an invalid response. Contact the developers if this issue persists.", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Close();
+                return;
+            }
+
+            if (sha512 == "none")
+            {
+                MessageBox.Show("The client exists on the webserver, but it is not downloadable anymore. If you believe this is an error, contact the developers. (sha512 is \"none\").", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Close();
+                return;
+            }
+
+            if (doInstall)
+            {
+                // Assuming we're in the temp folder or the user knows what they're doing, start replacing files.
+                label1.Text = "Installing Tadah...";
+
+                // download zip... check sha512... extract zip... (optional) redirect to servers page
             }
             else
             {
-                MessageBox.Show("Your install of Tadah is broken. Please reinstall.", "Broken Install", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Close();
-            }*/
+                // Clone the installer to the temp folder so we can actually install.
 
-            MessageBox.Show("Your version of Tadah is outdated or corrupted. Please update!", "Outdated Tadah", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                string currentExecutablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string copiedExecutablePath = Path.GetTempPath() + "TadahLauncher.exe";
+
+                File.Copy(currentExecutablePath, copiedExecutablePath, true);
+
+                var process = new Process
+                {
+                    StartInfo =
+                    {
+                        FileName = copiedExecutablePath,
+                        Arguments = "-update"
+                    }
+                };
+                process.Start();
+
+                Close();
+                return;
+            }
         }
 
         private async void Form1_Shown(object sender, EventArgs e)
@@ -47,33 +102,36 @@ namespace TadahLauncher
 
             if (args.Length < 2)
             {
-                MessageBox.Show("Invalid arguments.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Close();
+                UpdateClient(false);
+                return;
+            }
+
+            if (args[1] == "-update")
+            {
+                UpdateClient(true);
                 return;
             }
 
             if (args[1] != "-token")
             {
-                MessageBox.Show("Invalid arguments.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Close();
+                UpdateClient(false);
                 return;
             }
 
             if (!File.Exists(@path + @"\TadahApp.exe"))
             {
                 MessageBox.Show("The client couldn't be found, so we are going to install it.\nCurrent Directory: " + path, "Client Missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                UpdateClient();
+                UpdateClient(false);
+                return;
             }
-
-            //MessageBox.Show("Token: " + args[2], "Supplied Token", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             label1.Text = "Checking version...";
             progressBar1.Value = 50;
 
-            string receivedVersionString = "N/A";
+            string recievedClientData;
             try
             {
-                receivedVersionString = new WebClient().DownloadString(baseUrl + "/client/versionstring");
+                recievedClientData = new WebClient().DownloadString(baseUrl + "/client/" + client);
             }
             catch
             {
@@ -82,10 +140,30 @@ namespace TadahLauncher
                 Close();
                 return;
             }
+
+            string versionString = "false";
+            string downloadUrl = "false";
+            string sha512 = "none";
+
+            try
+            {
+                JObject clientData = JObject.Parse(recievedClientData);
+
+                versionString = (string)clientData["version"];
+                downloadUrl = (string)clientData["url"];
+                sha512 = (string)clientData["sha512"];
+            }
+            catch
+            {
+                MessageBox.Show("Could not parse client info JSON data. This usually occurs if the webserver gives an invalid response. Contact the developers if this issue persists.", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Close();
+                return;
+            }
             
-            if (receivedVersionString == version)
+            if (versionString == version)
             {
                 label1.Text = "Launching Tadah " + version + "...";
+
                 var process = new Process
                 {
                     StartInfo =
@@ -95,14 +173,16 @@ namespace TadahLauncher
                     }
                 };
                 process.Start();
+
                 progressBar1.Value = 100;
                 await Task.Delay(5000);
+
                 Close();
                 return;
             }
             else
             {
-                UpdateClient();
+                UpdateClient(false);
                 return;
             }
         }
