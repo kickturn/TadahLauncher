@@ -2,9 +2,10 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Net;
 using System.IO;
+using System.Net;
 using Newtonsoft.Json.Linq;
+using System.Security.Cryptography;
 
 namespace TadahLauncher
 {
@@ -67,16 +68,56 @@ namespace TadahLauncher
             if (doInstall)
             {
                 // Assuming we're in the temp folder or the user knows what they're doing, start replacing files.
-                label1.Text = "Installing Tadah...";
+                label1.Text = "Downloading latest client...";
 
-                // download zip... check sha512... extract zip... (optional) redirect to servers page
+                WebClient client = new WebClient();
+                string tempZipArchivePath = Path.GetTempPath() + "Tadah" + client + ".zip";
+
+                client.DownloadProgressChanged += (s, e) =>
+                {
+                    progressBar1.Value = e.ProgressPercentage;
+                };
+
+                client.DownloadFileCompleted += (s, e) =>
+                {
+                    label1.Text = "Verifying downloaded files...";
+
+                    SHA512 cSha512 = SHA512.Create();
+
+                    byte[] zipArchiveSha512Bytes;
+                    using (FileStream stream = File.OpenRead(tempZipArchivePath))
+                    {
+                        zipArchiveSha512Bytes = cSha512.ComputeHash(stream);
+                    }
+
+                    string sha512result = "";
+                    foreach (byte b in zipArchiveSha512Bytes) sha512result += b.ToString("x2");
+
+                    if (sha512result != sha512)
+                    {
+                        MessageBox.Show("SHA512 mismatch.\nWebsite reported: " + sha512 + "\nLocal file: " + sha512result, "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        Close();
+                        return;
+                    }
+                };
+
+                try
+                {
+                    client.DownloadFileAsync(new Uri(baseUrl + "/client/download/" + client), tempZipArchivePath);
+                }
+                catch
+                {
+                    MessageBox.Show("Could not get latest client files from the website.", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    Close();
+                    return;
+                }
             }
             else
             {
                 // Clone the installer to the temp folder so we can actually install.
 
                 string currentExecutablePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                string copiedExecutablePath = Path.GetTempPath() + "TadahLauncher.exe";
+                string copiedExecutablePath = Path.GetTempPath() + "TadahLauncher" + client + ".exe";
 
                 File.Copy(currentExecutablePath, copiedExecutablePath, true);
 
@@ -99,7 +140,6 @@ namespace TadahLauncher
         {
             string[] args = Environment.GetCommandLineArgs();
           
-
             if (args.Length < 2)
             {
                 UpdateClient(false);
