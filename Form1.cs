@@ -41,7 +41,7 @@ namespace TadahLauncher
 
             string versionString = "false";
             string downloadUrl = "false";
-            string sha512 = "none";
+            string sha256 = "none";
 
             try
             {
@@ -49,7 +49,7 @@ namespace TadahLauncher
 
                 versionString = (string)clientData["version"];
                 downloadUrl = (string)clientData["url"];
-                sha512 = (string)clientData["sha512"];
+                sha256 = (string)clientData["sha256"];
             }
             catch
             {
@@ -58,9 +58,9 @@ namespace TadahLauncher
                 return;
             }
 
-            if (sha512 == "none")
+            if (sha256 == "none")
             {
-                MessageBox.Show("The client exists on the webserver, but it is not downloadable anymore. If you believe this is an error, contact the developers. (sha512 is \"none\").", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("The client exists on the webserver, but it is not downloadable anymore. If you believe this is an error, contact the developers. (sha256 is \"none\").", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Close();
                 return;
             }
@@ -82,20 +82,20 @@ namespace TadahLauncher
                 {
                     label1.Text = "Verifying downloaded files...";
 
-                    SHA512 cSha512 = SHA512.Create();
+                    SHA256 cSha256 = SHA256.Create();
 
-                    byte[] zipArchiveSha512Bytes;
+                    byte[] zipArchiveSha256Bytes;
                     using (FileStream stream = File.OpenRead(tempZipArchivePath))
                     {
-                        zipArchiveSha512Bytes = cSha512.ComputeHash(stream);
+                        zipArchiveSha256Bytes = cSha256.ComputeHash(stream);
                     }
 
-                    string sha512result = "";
-                    foreach (byte b in zipArchiveSha512Bytes) sha512result += b.ToString("x2");
+                    string sha256result = "";
+                    foreach (byte b in zipArchiveSha256Bytes) sha256result += b.ToString("x2");
 
-                    if (sha512result != sha512)
+                    if (sha256result != sha256)
                     {
-                        MessageBox.Show("SHA512 mismatch.\nWebsite reported: " + sha512 + "\nLocal file: " + sha512result, "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("SHA256 mismatch.\nWebsite reported: " + sha256 + "\nLocal file: " + sha256result, "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         Close();
                         return;
                     }
@@ -183,7 +183,7 @@ namespace TadahLauncher
 
             string versionString = "false";
             string downloadUrl = "false";
-            string sha512 = "none";
+            string sha256 = "none";
 
             try
             {
@@ -191,7 +191,7 @@ namespace TadahLauncher
 
                 versionString = (string)clientData["version"];
                 downloadUrl = (string)clientData["url"];
-                sha512 = (string)clientData["sha512"];
+                sha256 = (string)clientData["sha256"];
             }
             catch
             {
